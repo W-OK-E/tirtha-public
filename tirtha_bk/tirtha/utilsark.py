@@ -3,7 +3,6 @@ Utility code adapted for Project Tirtha from `arklet` -
 https://github.com/internetarchive/arklet (MIT license)
 
 """
-
 import secrets
 from typing import Tuple
 

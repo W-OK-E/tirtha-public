@@ -33,6 +33,3 @@ tmux send-keys -t celery_session "celery -A tirtha worker -l INFO --max-tasks-pe
 # Starting the frontend | NOTE: Browse to HOST_IP:8000 in a browser to access the frontend.
 gunicorn --bind 0.0.0.0:$GUNICORN_PORT tirtha_bk.wsgi
 # ==================================================================================================
-
-
-

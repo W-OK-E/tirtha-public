@@ -3,7 +3,6 @@ This is intended to be used as a CLI tool
 to get the verbose ID of a model (mesh), given its ID.
 
 """
-
 import os
 
 import django

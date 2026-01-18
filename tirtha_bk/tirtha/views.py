@@ -305,6 +305,7 @@ def _signin(user_info: dict) -> tuple:
         contrib = Contributor.objects.get(email=ADMIN_MAIL)
         output = f"Signed-in as {ADMIN_MAIL}."
         return output, contrib
+    
     logging.info(f"_signin -- Google login is enabled. Signing in user: {user_info}")
     # Get contributor info
     email = user_info.get("email")

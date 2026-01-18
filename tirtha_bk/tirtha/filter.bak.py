@@ -87,6 +87,7 @@ class Filter:
             self.logger.info("Conversion was skipped.")
 
     def Convert(self, source_format, target_format, **kwargs):
+        
         self.logger.info(
             f"[DEBUG] Starting conversion from {source_format} to {target_format}..."
         )
@@ -136,6 +137,7 @@ class Filter:
         return converted_data
 
     def Process_data(self, bbox=None, apply_density_filter=None, remove_flyers=None):
+        
         if bbox:
             min_x, min_y, min_z, max_x, max_y, max_z = bbox
             self.crop_by_bbox(min_x, min_y, min_z, max_x, max_y, max_z)

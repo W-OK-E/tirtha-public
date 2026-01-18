@@ -394,11 +394,10 @@ async function checkExif(file) {
         reader.readAsArrayBuffer(file);
     });
 }
-
+// Show modal with SO & Form
 contBtn.addEventListener("click", function() {
     contDialog.showModal();
-    body.classList.toggle("overflow-toggle");
-    
+    body.classList.toggle("overflow-toggle");  
 });
 
 // Close modal on receiving a click outside
