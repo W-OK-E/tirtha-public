@@ -54,7 +54,7 @@ def post_migrate_create_defaults(sender, **kwargs):
         dest = MEDIA / f"models/{mesh_ID}/"
         dest.mkdir(parents=True, exist_ok=True)
         for src in srcs:
-            if(os.path.exists(src)):
+            if os.path.exists(src):
                 shutil.copy2(src, dest)
 
         # Create default mesh - shown on homepage
@@ -65,7 +65,7 @@ def post_migrate_create_defaults(sender, **kwargs):
         mesh.preview = f"models/{mesh_ID}/{mesh_ID}_prev.jpg"
         mesh.thumbnail = f"models/{mesh_ID}/{mesh_ID}_thumb.jpg"
         mesh.minObsAng = 70
-        if(os.path.exists(mesh.preview) and os.path.exists(mesh.thumbnail)):
+        if os.path.exists(mesh.preview) and os.path.exists(mesh.thumbnail):
             mesh.save()
         else:
             pass

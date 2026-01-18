@@ -7,8 +7,7 @@ const modelArea = doc.getElementById('model-area');
 const model = doc.getElementById('model');
 const fControls = doc.getElementById('floating-controls');
 const infoBtn = doc.getElementById('info-btn');
-const PRE_URL = ""
-const DEV_MODE = true;
+const PRE_URL = "/project/tirtha"
 
 
 // ========================== FS START ==========================
@@ -400,11 +399,6 @@ contBtn.addEventListener("click", function() {
     contDialog.showModal();
     body.classList.toggle("overflow-toggle");
     
-    // Development bypass - remove auth restrictions
-    if (DEV_MODE) {
-        uploadForm.removeClass("blur-form");
-        uploadFormElems.removeAttr("inert");
-    }
 });
 
 // Close modal on receiving a click outside

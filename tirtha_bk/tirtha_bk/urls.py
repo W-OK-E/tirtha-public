@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.conf import settings
 from django.conf.urls import handler403, handler404, handler500
 from django.conf.urls.static import static
@@ -25,7 +26,7 @@ PRE_URL = settings.PRE_URL
 urlpatterns = [
     path("", include("tirtha.urls")),
     path(PRE_URL + "admin/", admin.site.urls),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+] + static(PRE_URL + settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Only serve in testing. Otherwise use gunicorn or nginx
 if settings.DEBUG:

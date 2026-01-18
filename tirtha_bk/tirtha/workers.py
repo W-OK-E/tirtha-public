@@ -246,7 +246,7 @@ class BaseOps:
 
         """
         kind = self.kind
-        out_map = {'aV':".glb",'GS':'.splat','Point':'.ply'}
+        out_map = {"aV": ".glb", "GS": ".splat", "Point": ".ply"}
         out_type = out_map[kind]
         # out_type = ".glb" if kind == "aV" else ".splat"  # Filetype of final output
         meshStr = self.meshStr
@@ -282,9 +282,13 @@ class BaseOps:
                 f"Copying output for {kind} run {curr_runID} for mesh {meshStr}..."
             )
 
-            out_file_mapper = {'aV':'decimatedOptGLB.glb','GS':'postprocessed.splat','Point':'Point_Voxel.ply'}
+            out_file_mapper = {
+                "aV": "decimatedOptGLB.glb",
+                "GS": "postprocessed.splat",
+                "Point": "Point_Voxel.ply",
+            }
             out_file = out_file_mapper[kind]
-            src = self.opt_path/out_file
+            src = self.opt_path / out_file
             self.arkURL = (
                 f"models/{self.meshID}/published/{self.meshID}_{curr_runID}{out_type}"
             )
@@ -775,8 +779,7 @@ class PointOps(BaseOps):
 
         if not venv_python.exists():
             self._handle_error(
-                FileNotFoundError(f"Python not found in {venv_python}"),
-                "run_vggt"
+                FileNotFoundError(f"Python not found in {venv_python}"), "run_vggt"
             )
 
         self.logger.info("Running VGGT pipeline...")
@@ -794,6 +797,7 @@ class PointOps(BaseOps):
         self.logger.info("Finished running VGGT pipeline.")
 
         self.opt_path = output_path
+
 
 """
 Tasks
@@ -857,7 +861,7 @@ def ops_runner(contrib_id: str, kind: str) -> None:
         Options: 'aV' (AliceVision) or 'GS' (Gaussian Splatting)
 
     """
-    ops_map = {"aV":MeshOps,"GS":GSOps,"Point":PointOps}
+    ops_map = {"aV": MeshOps, "GS": GSOps, "Point": PointOps}
     OP = ops_map[kind]
     op_name = OP.__name__
 
@@ -888,17 +892,3 @@ def ops_runner(contrib_id: str, kind: str) -> None:
         cons.print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {e}")
         raise e
     cons.rule(f"{op_name} Runner End")
-
-
-
-
-
-
-
-
-
-
-
-
-
-

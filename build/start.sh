@@ -22,7 +22,6 @@ cd ../
 # Triggering the services
 # ==================================================================================================
 # Activating the virtual environment
-# conda activate tirtha_dev
 
 # cd to the backend directory
 cd ./tirtha_bk/
@@ -31,7 +30,6 @@ cd ./tirtha_bk/
 tmux new-session -d -s celery_session || tmux attach-session -t celery_session
 tmux send-keys -t celery_session "celery -A tirtha worker -l INFO --max-tasks-per-child=1 -P threads --beat --concurrency=1" C-m
 
-source ~/miniconda3/bin/activate tirtha_dev
 # Starting the frontend | NOTE: Browse to HOST_IP:8000 in a browser to access the frontend.
 gunicorn --bind 0.0.0.0:$GUNICORN_PORT tirtha_bk.wsgi
 # ==================================================================================================

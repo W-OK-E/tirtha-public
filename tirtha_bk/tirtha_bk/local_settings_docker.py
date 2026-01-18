@@ -3,6 +3,7 @@
 Fields marked CHANGEME: need to be changed before deployment
 
 """
+
 import os
 from pathlib import Path
 from django.core.management.utils import get_random_secret_key
@@ -48,8 +49,8 @@ INSTALLED_APPS = [
 BASE_DIR = Path(__file__).resolve().parent.parent
 PRE_URL = os.getenv("PRE_URL", "")  # CHANGEME: e.g., "/tirtha/"
 
-PROD_DIR = "/home/om/tirtha-public/LOGS/prod"  # Short term storage for current runs # CHANGEME:
-NFS_DIR = "/home/om/tirtha-public/LOGS/archive"  # Long term storage for old runs # CHANGEME: Does not need to use NFS and can be on the same system
+PROD_DIR = "/var/www/tirtha/prod/"  # Short term storage for current runs # CHANGEME:
+NFS_DIR = "/var/www/tirtha/archive/"  # Long term storage for old runs # CHANGEME: Does not need to use NFS and can be on the same system
 ARCHIVE_ROOT = f"{NFS_DIR}archives"
 LOG_DIR = f"{PROD_DIR}logs"
 LOG_LOCATION = LOG_DIR + "/tirtha.log"
@@ -89,7 +90,7 @@ SESSION_COOKIE_SAMESITE = "Lax"  # NOTE: Lax needed for authlib | See: https://d
 SESSION_COOKIE_SECURE = True if GOOGLE_LOGIN else False
 CSRF_COOKIE_SAMESITE = "Strict"
 CSRF_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = True
 SECURE_HSTS_PRELOAD = True
 SECURE_HSTS_SECONDS = (
     31536000  # 1 year # NOTE: If sometime HTTPS is disabled, this should be removed

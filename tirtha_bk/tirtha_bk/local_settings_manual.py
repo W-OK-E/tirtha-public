@@ -3,6 +3,7 @@
 Fields marked CHANGEME: need to be changed before deployment
 
 """
+
 import os
 from pathlib import Path
 from django.core.management.utils import get_random_secret_key
@@ -49,8 +50,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # print(BASE_DIR)
 PRE_URL = os.getenv("PRE_URL", "")  # CHANGEME: e.g., "/tirtha/"
 # print(PRE_URL)
-PROD_DIR = "/home/om/tirtha-public/LOGS/prod/"  # Short term storage for current runs # CHANGEME:
-NFS_DIR = "/home/om/tirtha-public/LOGS/archive/"  # Long term storage for old runs # CHANGEME: Does not need to use NFS and can be on the same system
+PROD_DIR = "/var/www/tirtha/prod/"  # Short term storage for current runs # CHANGEME      
+NFS_DIR = "/var/www/tirtha/archive/"  # Long term storage for old runs # CHANGEME: Does not need to use NFS and can be on the same system
 ARCHIVE_ROOT = f"{NFS_DIR}archives"
 LOG_DIR = f"{PROD_DIR}logs"
 LOG_LOCATION = LOG_DIR + "/tirtha.log"
@@ -60,7 +61,6 @@ ADMIN_LOG_LOCATION = LOG_LOCATION
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]  # JS, CSS, images, favicon
-print(STATICFILES_DIRS)
 STATIC_URL = PRE_URL + "/static/"
 STATIC_ROOT = os.path.join(PROD_DIR, "static")
 
@@ -71,14 +71,15 @@ MEDIA_ROOT = f"{PROD_DIR}media"
 
 # Default attributes used to create default mesh & contributor
 # NOTE: You will need to create the default contributor manually before running the server for the first time -> Needed in `post_migrate_create_defaults()` in `tirtha_bk/tirtha/signals.py.
-DEFAULT_MESH_NAME = "Sample"  # Default mesh name to use while setting up | Will be shown on homepage
-DEFAULT_MESH_ID = "MENiSoVd59YziAth"
-ADMIN_NAME = os.getenv("DEFAULT_USER_NAME", "om")  # CHANGEME:
-ADMIN_MAIL = os.getenv("DEFAULT_USER_MAIL", "okhere21@gmail.com")  # CHANGEME:
+DEFAULT_MESH_NAME = (
+    "NISER Meditation Center"  # Default mesh name to use while setting up | Will be shown on homepage
+)
+DEFAULT_MESH_ID = "9zpT9kVZwP9XxAbG"
+ADMIN_NAME = os.getenv("DEFAULT_USER_NAME", "Tirtha Admin")  # CHANGEME:
+ADMIN_MAIL = os.getenv("DEFAULT_USER_MAIL", "tadmin@example.com")  # CHANGEME:
 
 # Sign in with Google
-# GOOGLE_LOGIN = os.getenv("GOOGLE_LOGIN", "False").lower() == "true"
-GOOGLE_LOGIN = False
+GOOGLE_LOGIN = os.getenv("GOOGLE_LOGIN", "False").lower() == "true"
 GOOGLE_CLIENT_ID = os.getenv(
     "GOOGLE_CLIENT_ID", ""
 )  # CHANGEME: https://developers.google.com/identity/gsi/web/guides/overview
@@ -88,11 +89,10 @@ GOOGLE_CLIENT_SECRET = os.getenv(
 )  # CHANGEME: https://developers.google.com/identity/gsi/web/guides/overview
 COOKIE_EXPIRE_TIME = 3600  # 1 hour
 SESSION_COOKIE_SAMESITE = "Lax"  # NOTE: Lax needed for authlib | See: https://docs.djangoproject.com/en/5.1/ref/settings/#std-setting-SESSION_COOKIE_SAMESITE
-# SESSION_COOKIE_SECURE = True if GOOGLE_LOGIN else False
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = True if GOOGLE_LOGIN else False
 CSRF_COOKIE_SAMESITE = "Strict"
-CSRF_COOKIE_SECURE = False
-SECURE_SSL_REDIRECT = False
+CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
 SECURE_HSTS_PRELOAD = True
 SECURE_HSTS_SECONDS = (
     31536000  # 1 year # NOTE: If sometime HTTPS is disabled, this should be removed
@@ -117,22 +117,6 @@ DB_PWD = os.getenv("DB_PWD", "docker")  # CHANGEME:
 DB_HOST = os.getenv("DB_HOST", "localhost")  # CHANGEME:
 DB_PORT = os.getenv("DB_PORT", "")
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": DB_NAME,
-#         "USER": DB_USER,
-#         "PASSWORD": DB_PWD,
-#         "HOST": DB_HOST,
-#         "PORT": DB_PORT,
-#     }
-# }
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 # django-dbbackup
 DBBACKUP_STORAGE = "django.core.files.storage.FileSystemStorage"
 DBBACKUP_STORAGE_OPTIONS = {
