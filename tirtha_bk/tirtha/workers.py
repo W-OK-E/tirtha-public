@@ -40,7 +40,7 @@ ARK_SHOULDER = settings.ARK_SHOULDER
 
 
 class BaseOps:
-    def __init__(self, meshID: str, kind: str = "aV") -> None:
+    def __init__(self, meshID: str, kind: str = "aV", contrib_id: str = None) -> None:
         """
         Base class for all operations
 
@@ -50,19 +50,27 @@ class BaseOps:
             Mesh ID
         kind : str
             Kind of operation, one of ['aV', 'GS'], by default 'aV'
-
+        contrib_id : str, optional
+            Contribution ID that triggered this operation
         """
         self.meshID = meshID
         self.mesh = mesh = Mesh.objects.get(ID=meshID)
         self.meshVID = mesh.verbose_id
         self.meshStr = f"{self.meshVID} <=> {self.meshID}"  # Used in logging
-
+        self.contrib_id = contrib_id
         # Create new Run
         self.kind = kind
         self.run = run = Run.objects.create(mesh=mesh, kind=kind)
         run.save()  # Creates run directory
         self.runID = runID = run.ID
-        self.runDir = STATIC / "models" / Path(run.directory)
+        # Ensure run.directory is relative path for new runs
+        run_dir_path = Path(run.directory)
+        if run_dir_path.is_absolute():
+            # This should not happen for new runs, but handle gracefully
+            raise ValueError(
+                f"New run directory should be relative, got absolute path: {run.directory}"
+            )
+        self.runDir = STATIC / "models" / run_dir_path
 
         # Set up Logger
         self.log_path = LOG_DIR / f"{kind}Ops/{meshID}" / self.runDir.stem
@@ -75,6 +83,14 @@ class BaseOps:
         cls.logger.info(
             f"ID {meshID} has Verbose ID (VID) {self.meshVID}. Using VID for logging."
         )
+  # Get contribution object if contrib_id provided
+        self.contribution = None
+        if contrib_id:
+            try:
+                self.contribution = Contribution.objects.get(ID=contrib_id)
+            except Contribution.DoesNotExist:
+                # Log warning but continue
+                cls.logger.warning(f"Contribution with ID {contrib_id} does not exist.")
 
         # Source (images) & run directories
         self.imageDir = MEDIA / f"models/{meshID}/images/good"
@@ -170,7 +186,56 @@ class BaseOps:
         self.run.ended_at = timezone.now()
         self.run.save()
         self._update_run_status("Error")
+       # Send email notification to admin about the failure
+        try:
+            from .email_utils import send_reconstruction_failure_email
 
+            # Get contribution and contributor details - use exact contribution if available
+            contribution_id = "Unknown"
+            contributor_email = "Unknown"
+
+            if self.contribution:
+                # Use the exact contribution that triggered this operation
+                contribution_id = str(self.contribution.ID)
+                contributor_email = self.contribution.contributor.email
+            elif self.contrib_id:
+                # Fallback: use contrib_id string
+                contribution_id = str(self.contrib_id)
+                # Try to get contributor email
+                try:
+                    contrib = Contribution.objects.get(ID=self.contrib_id)
+                    contributor_email = contrib.contributor.email
+                except Contribution.DoesNotExist:
+                    pass
+            else:
+                # Fallback: use run or mesh contributions (old behavior)
+                if self.run.contributions.exists():
+                    latest_contribution = self.run.contributions.first()
+                    contribution_id = str(latest_contribution.ID)
+                    contributor_email = latest_contribution.contributor.email
+                elif self.run.mesh.contributions.exists():
+                    latest_contribution = self.run.mesh.contributions.first()
+                    contribution_id = str(latest_contribution.ID)
+                    contributor_email = latest_contribution.contributor.email
+
+            send_reconstruction_failure_email(
+                contribution_id=contribution_id,
+                mesh_id=str(self.mesh.ID),
+                mesh_name=self.mesh.name,
+                contributor_email=contributor_email,
+                processing_step=caller,
+                error_message=str(excep),
+                log_file_path=str(self.logger._log_file)
+                if hasattr(self.logger, "_log_file")
+                else None,
+                run_id=str(self.runID),
+                operation_type=self.kind + "Ops",
+            )
+        except Exception as email_error:
+            self.logger.error(
+                f"Failed to send failure notification email: {email_error}",
+                exc_info=True,
+            )
         raise excep
 
     def _update_mesh_status(self, status: str) -> None:
@@ -264,11 +329,20 @@ class BaseOps:
             )
             if len(runs) > 0:
                 for run in runs:
-                    runDir = STATIC / "models" / Path(run.directory)
+                   # Handle both relative and absolute paths in run.directory
+                    run_dir_path = Path(run.directory)
+                    if run_dir_path.is_absolute():
+                        # Already an absolute path (archived run)
+                        runDir = run_dir_path
+                    else:
+                        # Relative path (active run)
+                        runDir = STATIC / "models" / run_dir_path
+
                     self.logger.info(
                         f"{run.kind} Run {run.ID} for mesh {meshStr} has errors. Deleting..."
                     )
-                    shutil.rmtree(runDir)  # Delete folder
+                    if runDir.exists():
+                        shutil.rmtree(runDir)  # Delete folder                
                     run.delete()  # Delete from DB
                     self.logger.info(
                         f"Deleted {run.kind} run {run.ID} for mesh {meshStr}."
@@ -302,6 +376,8 @@ class BaseOps:
                 f"Archiving {kind} run {curr_runID} for mesh {meshStr} to {arcDir}."
             )
             shutil.move(self.runDir, arcDir)  # Move run folder to archive
+            # Store relative path to avoid creating nested directory structures in STATIC
+            relative_arc_path = arcDir.relative_to(ARCHIVE_ROOT)
             self.run.directory = str(arcDir)  # Update run directory
             self._update_run_status("Archived")  # Update run status & save
             self.logger.info(
@@ -421,8 +497,8 @@ class MeshOps(BaseOps):
 
     """
 
-    def __init__(self, meshID: str) -> None:
-        super().__init__(meshID=meshID, kind="aV")
+    def __init__(self, meshID: str, contrib_id:str) -> None:
+        super().__init__(meshID=meshID, kind="aV", contrib_id=contrib_id)
 
         # Check if executables exist
         self.aV_exec = Path(ALICEVISION_DIRPATH)
@@ -626,17 +702,17 @@ class GSOps(BaseOps):
 
     """
 
-    def __init__(self, meshID: str) -> None:
-        super().__init__(meshID=meshID, kind="GS")
+    def __init__(self, meshID: str, contrib_id: str) -> None:
+        super().__init__(meshID=meshID, kind="GS", contrib_id=contrib_id)
 
         # Check if nerfstudio is installed
         from importlib.util import find_spec
 
         if find_spec("nerfstudio"):
-            self.logger.info("nerf_studio is installed.")
+            self.logger.info("nerfstudio is installed.")
         else:
-            self.logger.error("nerf_studio is not installed.")
-            self._handle_error(ImportError("nerf_studio is not installed."), "GSOps")
+            self.logger.error("nerfstudio is not installed.")
+            self._handle_error(ImportError("nerfstudio is not installed."), "GSOps")
 
         # Specify the run order (else alphabetical order)
         self._run_order = [
@@ -672,7 +748,11 @@ class GSOps(BaseOps):
         # Create GS
         self.logger.info("Creating GS using Splatfacto...")
         # NOTE: See https://docs.nerf.studio/nerfology/methods/splat.html#quality-and-regularization
-        reg_opts = (
+        reg_opts = (           
+            # Slightly faster, but more memory intensive
+            " --pipeline.datamanager.images-on-gpu True"
+            # Higher degree for better quality
+            + " --pipeline.model.sh-degree 3"
             # Threshold to delete translucent gaussians - lower values remove more (usually better quality)
             " --pipeline.model.cull_alpha_thresh="
             + str(alpha_cull_thresh)
@@ -683,7 +763,7 @@ class GSOps(BaseOps):
             + " --pipeline.model.use_scale_regularization True"
         )
         cmd = (
-            "ns-train splatfacto "
+            "ns-train splatfacto-big "
             + reg_opts
             + " --data "
             + str(output_path)
@@ -694,6 +774,9 @@ class GSOps(BaseOps):
             # Quit after GS creation
             # Also see: https://docs.nerf.studio/quickstart/viewer_quickstart.html#accessing-over-an-ssh-connection
             + "--viewer.quit-on-train-completion True "
+            # TODO: Uncomment these with newer nerfstudio
+            # + "--eval-mode fraction"
+            # + "--train-split-fraction 1"
             + "> "
             + str(sf_train_log_path)
         )
@@ -709,6 +792,9 @@ class GSOps(BaseOps):
             + "/output/splatfacto/config.yml "
             + " --output-dir "
             + str(output_path)
+            # + " --obb_center 0.0000000000 0.0000000000 0.0000000000"
+            # + " --obb_rotation 0.0000000000 0.0000000000 0.0000000000"
+            # + " --obb_scale 1.0000000000 1.0000000000 1.0000000000"
         )
         self._serialRunner(cmd, log_path)
         self.logger.info("Exported GS from Splatfacto.")
@@ -881,14 +967,108 @@ def ops_runner(contrib_id: str, kind: str) -> None:
     try:
         op = OP(meshID=meshID)
         cons.print(f"Check {op.log_path} for more details.")
+
+        # Store start time for calculating processing duration
+        start_time = datetime.now()
         op._run_all()
+
+        # Calculate processing duration
+        end_time = datetime.now()
+        processing_duration = str(end_time - start_time).split(".")[
+            0
+        ]  # Remove microseconds
+
         cons.print(
             f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: Finished {op_name} on {meshVID} <=> {meshID}."
         )
+
+        # Send success email notification to contributor and admins
+        try:
+            from .email_utils import (
+                send_contribution_processing_success_email,
+                send_admin_run_completion_email,
+            )
+
+            contributor_name = (
+                contrib.contributor.name or contrib.contributor.email.split("@")[0]
+            )
+
+            # Get ARK information if available
+            ark_url = None
+            ark_id = None
+            if hasattr(op, "run") and op.run.ark:
+                ark_url = f"{settings.BASE_URL}/ark:/{op.run.ark.ark}"
+                ark_id = op.run.ark.ark
+
+            # Send notification to contributor
+            send_contribution_processing_success_email(
+                contribution_id=contrib_id,
+                mesh_id=meshID,
+                mesh_name=contrib.mesh.name,
+                contributor_email=contrib.contributor.email,
+                contributor_name=contributor_name,
+                operation_type=kind,
+                run_id=str(op.runID) if hasattr(op, "runID") else None,
+                mesh_url=f"{settings.BASE_URL}/mesh/{meshID}/",
+                processing_duration=processing_duration,
+                ark_url=ark_url,
+                ark_id=ark_id,
+            )
+            cons.print(
+                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: Success notification sent to {contrib.contributor.email}."
+            )
+
+            # Send notification to admins
+            send_admin_run_completion_email(
+                contribution_id=contrib_id,
+                mesh_id=meshID,
+                mesh_name=contrib.mesh.name,
+                contributor_email=contrib.contributor.email,
+                contributor_name=contributor_name,
+                operation_type=kind,
+                run_id=str(op.runID) if hasattr(op, "runID") else None,
+                processing_duration=processing_duration,
+                ark_url=ark_url,
+                ark_id=ark_id,
+            )
+            cons.print(
+                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: Admin notification sent for run completion."
+            )
+
+        except Exception as email_error:
+            cons.print(f"Warning: Failed to send notification emails: {email_error}")
+            # NOTE: Don't raise the exception - email failure shouldn't break the processing
+
     except Exception as e:
         cons.print(
             f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: ERROR encountered in {op_name} for {meshVID} <=> {meshID}!"
         )
         cons.print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {e}")
+
+        # Send additional email notification if _handle_error didn't cover it
+        # This covers cases where the error might occur outside of the BaseOps methods
+        try:
+            from .email_utils import send_reconstruction_failure_email
+
+            contributor_email = contrib.contributor.email
+
+            send_reconstruction_failure_email(
+                contribution_id=contrib_id,
+                mesh_id=meshID,
+                mesh_name=contrib.mesh.name,
+                contributor_email=contributor_email,
+                processing_step="ops_runner",
+                error_message=str(e),
+                log_file_path=str(op.log_path)
+                if "op" in locals() and hasattr(op, "log_path")
+                else None,
+                run_id=str(op.runID)
+                if "op" in locals() and hasattr(op, "runID")
+                else None,
+                operation_type=kind,
+            )
+        except Exception as email_error:
+            cons.print(f"Failed to send failure notification email: {email_error}")
+
         raise e
     cons.rule(f"{op_name} Runner End")

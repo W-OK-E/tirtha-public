@@ -56,4 +56,3 @@ if __name__ == "__main__":
 
     cons.print(tab)
     cons.rule()
-    

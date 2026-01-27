@@ -219,52 +219,6 @@ def index(request, vid: str = None, runid: str = None):
 
     return render(request, template, context)
 
-def _signin(user_info: dict) -> tuple:
-    """
-    Retrieves or creates the contributor.
-
-    """
-    # For development only
-    if not GOOGLE_LOGIN:
-        logging.info("_signin -- Google login is disabled.")
-        # Return default contributor
-        contrib = Contributor.objects.get(email=ADMIN_MAIL)
-        output = f"Signed-in as {ADMIN_MAIL}."
-        return output, contrib
-    
-    logging.info(f"_signin -- Google login is enabled. Signing in user: {user_info}")
-    # Get contributor info
-    email = user_info.get("email")
-    name = user_info.get("name")
-
-    # NOTE: Treating email as unique ID, both for our DB and Google's
-    # NOTE: Contributor is created as inactive | Manual activation required
-    # CHECK: TODO: Allow auto-activation after testing
-    # Get or create contributor
-    contrib, _ = Contributor.objects.get_or_create(
-        email=email, defaults={"active": False}
-    )
-
-    # If name has changed, update name
-    if name != contrib.name:
-        logging.info(f"Updating name for {email} from {contrib.name} to {name}.")
-        contrib.name = name
-        contrib.save()
-
-    # Check if active
-    output = f"Signed-in as {email}."
-    if not contrib.active:
-        logging.info(f"{email} is not active.")
-        output = f"{email} is not active. Please contact the admin."
-
-    # Check if banned
-    if contrib.banned:
-        logging.info(f"{email} has been banned.")
-        output = f"{email} has been banned. Please contact the admin."
-
-    return output, contrib
-
-
 @require_GET
 def signin(request):
     """OAuth2.0 authorization redirect to Google."""
